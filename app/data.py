@@ -1,11 +1,18 @@
 from flask import Flask, render_template_string, request, send_file
 import os
 import csv
+import base64
+from io import BytesIO
 
 try:
 	import pandas as pd
 except Exception:
 	pd = None
+
+try:
+	import matplotlib.pyplot as plt
+except Exception:
+	plt = None
 
 app = Flask(__name__)
 
@@ -40,6 +47,7 @@ def index():
 			  <li><a href="/table">View table (default: last 200 rows)</a></li>
 			  <li><a href="/table?limit=50">View last 50 rows</a></li>
 			  <li><a href="/download">Download raw CSV</a></li>
+			  <li><a href="/volume-chart">Average monthly volume chart</a></li>
 			</ul>
 		  </div>
 		</body>
@@ -151,6 +159,97 @@ def download():
 	if not os.path.exists(path):
 		return f"Data file not found at {path}", 404
 	return send_file(path, as_attachment=True)
+
+
+@app.route('/volume-chart')
+def volume_chart():
+	"""Compute average monthly volume for each of the three periods and return a PNG bar chart embedded in HTML.
+	Requires pandas and matplotlib to be installed.
+	Query params:
+	 - period: optional, if set to 1/2/3 will show only that period's monthly series and value (not used here)
+	"""
+	path = data_file_path()
+	if not os.path.exists(path):
+		return f"Data file not found at {path}", 404
+
+	if pd is None:
+		return (
+			"This visualization requires pandas. Install it with: pip install pandas",
+			400,
+		)
+
+	if plt is None:
+		return (
+			"This visualization requires matplotlib. Install it with: pip install matplotlib",
+			400,
+		)
+
+	# load data
+	df = pd.read_csv(path, parse_dates=['Date'], infer_datetime_format=True)
+	# drop OpenInt if present
+	df = df.drop('OpenInt', axis=1, errors='ignore')
+	# ensure Date is datetime
+	df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+	df = df.dropna(subset=['Date'])
+
+	# define periods
+	period1 = df[df['Date'] < '1993-01-01']
+	period2 = df[(df['Date'] >= '1993-01-01') & (df['Date'] < '2009-01-01')]
+	period3 = df[df['Date'] >= '2009-01-01']
+
+	def avg_monthly_volume(period_df):
+		if period_df.empty:
+			return 0
+		# sum volume per month then average those monthly totals
+		monthly = period_df.set_index('Date').resample('M')['Volume'].sum()
+		return float(monthly.mean())
+
+	vals = [
+		avg_monthly_volume(period1),
+		avg_monthly_volume(period2),
+		avg_monthly_volume(period3),
+	]
+	labels = ['1977-1992', '1993-2008', '2009-2025']
+
+	# build chart
+	fig, ax = plt.subplots(figsize=(8, 4))
+	colors = ['#4c72b0', '#55a868', '#c44e52']
+	ax.bar(labels, vals, color=colors)
+	ax.set_ylabel('Average Monthly Volume')
+	ax.set_title('Average Monthly Volume by Period')
+	# annotate values
+	for i, v in enumerate(vals):
+		ax.text(i, v, f"{int(round(v)):,}", ha='center', va='bottom')
+
+	buf = BytesIO()
+	plt.tight_layout()
+	fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+	plt.close(fig)
+	buf.seek(0)
+	img_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+	# render simple html with embedded image
+	return render_template_string(
+		'''
+		<!doctype html>
+		<html>
+		<head>
+		  <meta charset="utf-8">
+		  <title>Average Monthly Volume Chart</title>
+		  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+		</head>
+		<body class="p-4">
+		  <div class="container">
+			<h1>Average Monthly Volume by Period</h1>
+			<p>Bar chart shows average total monthly volume for each historical period.</p>
+			<img src="data:image/png;base64,{{img}}" alt="volume chart" class="img-fluid" />
+			<p class="mt-3"><a href="/">Back</a></p>
+		  </div>
+		</body>
+		</html>
+		''',
+		img=img_b64,
+	)
 
 
 if __name__ == '__main__':

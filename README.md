@@ -29,6 +29,14 @@
 
 ### 3rd Commit
 
+- Added a visualization and API endpoint to compare average monthly trading volume across the three historical periods.
+  - New Flask route: `/volume-chart` (in `app/data.py`) that computes average monthly volume for each period and returns an embedded PNG bar chart.
+  - Implementation notes:
+    - Requires `pandas` and `matplotlib` to run the chart (the app will return a friendly message if those packages are missing).
+    - For each period, monthly totals are computed (sum of `Volume` per calendar month); the average of those monthly totals is plotted as a single bar per period.
+    - Chart is annotated with formatted numbers for quick reading and styled simply with Bootstrap for the surrounding page.
+  - Reasoning: comparing average monthly volumes by era highlights changes in market activity (liquidity) across Ford's long history and gives a concise, visual summary useful for both exploratory analysis and reporting.
+
 ### 4th Commit
 
 ### 5th Commit
