@@ -48,3 +48,10 @@
   - Reasoning: visualizing monthly average Open price by period helps reveal structural shifts in pricing behavior across eras (pre-1993, 1993-2008, post-2009), useful for trend analysis and contextual comparisons.
 
 ### 5th Commit
+
+- Added a time-series visualization that computes and plots the 12-month rolling average of the Close price for each period.
+  - New Flask route: `/close-rolling` (in `app/data.py`) that:
+    - Resamples each period by calendar month (mean of `Close`) and applies a 12-month rolling average (window=12).
+    - Plots the three rolling series together to show long-term pricing trends across eras.
+    - Returns an embedded PNG line chart; the route returns helpful messages if `pandas` or `matplotlib` are not installed.
+  - Reasoning: a 12-month rolling average smooths month-to-month noise and highlights structural, long-term shifts in the Close price across historical periods, which helps with trend detection and cross-period comparison.
