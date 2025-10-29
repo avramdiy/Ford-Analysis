@@ -32,6 +32,11 @@ def index():
 			<h1>CSV Data Viewer</h1>
 			<p>This small app serves <code>f.us.txt</code> as an HTML table.</p>
 			<ul>
+			  <li><strong>Time Periods:</strong></li>
+			  <li><a href="/table?period=1">Period 1: 1977-1992</a></li>
+			  <li><a href="/table?period=2">Period 2: 1993-2008</a></li>
+			  <li><a href="/table?period=3">Period 3: 2009-2025</a> (default)</li>
+			  <li><strong>View Options:</strong></li>
 			  <li><a href="/table">View table (default: last 200 rows)</a></li>
 			  <li><a href="/table?limit=50">View last 50 rows</a></li>
 			  <li><a href="/download">Download raw CSV</a></li>
@@ -56,9 +61,26 @@ def table():
 		# Use pandas when available for convenience and speed
 		try:
 			df = pd.read_csv(path, parse_dates=['Date'], infer_datetime_format=True)
+			# Drop OpenInt column as it's not needed
+			df = df.drop('OpenInt', axis=1)
+			
+			# Split into three periods
+			period1 = df[df['Date'] < '1993-01-01'].copy()
+			period2 = df[(df['Date'] >= '1993-01-01') & (df['Date'] < '2009-01-01')].copy()
+			period3 = df[df['Date'] >= '2009-01-01'].copy()
+			
+			# Get requested period from query param (default to latest)
+			period = request.args.get('period', default='3', type=str)
+			if period == '1':
+				df = period1
+			elif period == '2':
+				df = period2
+			else:
+				df = period3
 		except Exception:
 			# fallback to simple read if parsing fails
 			df = pd.read_csv(path)
+			df = df.drop('OpenInt', axis=1)
 
 		if limit:
 			df = df.tail(limit)

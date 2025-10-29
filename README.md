@@ -17,6 +17,16 @@
 
 ### 2nd Commit
 
+- Enhanced data analysis by splitting Ford's stock data into three distinct periods for better historical analysis:
+  - Period 1 (1977-1992): Early data covering Ford's recovery from the 70s oil crisis through the late 80s boom
+  - Period 2 (1993-2008): The SUV/truck boom years through the 2008 financial crisis
+  - Period 3 (2009-2025): Post-crisis recovery and transition to EVs
+- Technical changes:
+  - Dropped 'OpenInt' (Open Interest) column as it contained no meaningful data (all zeros)
+  - Added period selection via `?period=1|2|3` query parameter
+  - Updated UI to show clear period navigation
+  - Maintained existing pagination and download features
+
 ### 3rd Commit
 
 ### 4th Commit
