@@ -39,4 +39,12 @@
 
 ### 4th Commit
 
+- Added a time-series visualization showing monthly average Open price across the three periods.
+  - New Flask route: `/open-chart` (in `app/data.py`) that computes monthly-average Open price for each period and returns an embedded PNG line chart.
+  - Implementation notes:
+    - Requires `pandas` and `matplotlib`.
+    - Each period's data is resampled by calendar month and averaged (mean of `Open`), producing three time series plotted together for comparison.
+    - The plot uses distinct colors and includes a legend and grid for readability; the page is wrapped in Bootstrap styling.
+  - Reasoning: visualizing monthly average Open price by period helps reveal structural shifts in pricing behavior across eras (pre-1993, 1993-2008, post-2009), useful for trend analysis and contextual comparisons.
+
 ### 5th Commit

@@ -48,6 +48,7 @@ def index():
 			  <li><a href="/table?limit=50">View last 50 rows</a></li>
 			  <li><a href="/download">Download raw CSV</a></li>
 			  <li><a href="/volume-chart">Average monthly volume chart</a></li>
+			  <li><a href="/open-chart">Monthly average Open price (line chart)</a></li>
 			</ul>
 		  </div>
 		</body>
@@ -243,6 +244,86 @@ def volume_chart():
 			<h1>Average Monthly Volume by Period</h1>
 			<p>Bar chart shows average total monthly volume for each historical period.</p>
 			<img src="data:image/png;base64,{{img}}" alt="volume chart" class="img-fluid" />
+			<p class="mt-3"><a href="/">Back</a></p>
+		  </div>
+		</body>
+		</html>
+		''',
+		img=img_b64,
+	)
+
+
+@app.route('/open-chart')
+def open_chart():
+	"""Plot monthly average Open price for the three periods as a line chart.
+	Requires pandas and matplotlib.
+	"""
+	path = data_file_path()
+	if not os.path.exists(path):
+		return f"Data file not found at {path}", 404
+
+	if pd is None:
+		return (
+			"This visualization requires pandas. Install it with: pip install pandas",
+			400,
+		)
+
+	if plt is None:
+		return (
+			"This visualization requires matplotlib. Install it with: pip install matplotlib",
+			400,
+		)
+
+	# load and prepare data
+	df = pd.read_csv(path, parse_dates=['Date'], infer_datetime_format=True)
+	df = df.drop('OpenInt', axis=1, errors='ignore')
+	df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+	df = df.dropna(subset=['Date'])
+
+	# define periods
+	period1 = df[df['Date'] < '1993-01-01']
+	period2 = df[(df['Date'] >= '1993-01-01') & (df['Date'] < '2009-01-01')]
+	period3 = df[df['Date'] >= '2009-01-01']
+
+	# resample by month and take mean of Open
+	series1 = period1.set_index('Date').resample('M')['Open'].mean()
+	series2 = period2.set_index('Date').resample('M')['Open'].mean()
+	series3 = period3.set_index('Date').resample('M')['Open'].mean()
+
+	# plot
+	fig, ax = plt.subplots(figsize=(10, 5))
+	ax.plot(series1.index, series1.values, label='1977-1992', color='#4c72b0')
+	ax.plot(series2.index, series2.values, label='1993-2008', color='#55a868')
+	ax.plot(series3.index, series3.values, label='2009-2025', color='#c44e52')
+	ax.set_ylabel('Average Open Price')
+	ax.set_title('Monthly Average Open Price by Period')
+	ax.legend()
+	ax.grid(alpha=0.2)
+	# rotate x labels for readability
+	for label in ax.get_xticklabels():
+		label.set_rotation(30)
+
+	buf = BytesIO()
+	plt.tight_layout()
+	fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+	plt.close(fig)
+	buf.seek(0)
+	img_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+	return render_template_string(
+		'''
+		<!doctype html>
+		<html>
+		<head>
+		  <meta charset="utf-8">
+		  <title>Monthly Average Open Price</title>
+		  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+		</head>
+		<body class="p-4">
+		  <div class="container">
+			<h1>Monthly Average Open Price</h1>
+			<p>Line chart shows monthly average Open price for each period (time series).</p>
+			<img src="data:image/png;base64,{{img}}" alt="open chart" class="img-fluid" />
 			<p class="mt-3"><a href="/">Back</a></p>
 		  </div>
 		</body>
